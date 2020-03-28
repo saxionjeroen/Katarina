@@ -1,0 +1,116 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('katarina:server');
+var http = require('http');
+var https = require('https');
+var KG_PER_LB = 0.45359237;
+var KG_PER_OUNCE = 0.0311034768;
+var OUNCE_PER_LB = KG_PER_LB / KG_PER_OUNCE;
+var LB_PER_OUNCE = KG_PER_OUNCE / KG_PER_LB;
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+    var port = parseInt(val, 10);
+
+    if (isNaN(port)) {
+        // named pipe
+        return val;
+    }
+
+    if (port >= 0) {
+        // port number
+        return port;
+    }
+
+    return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+    if (error.syscall !== 'listen') {
+        throw error;
+    }
+
+    var bind = typeof port === 'string'
+        ? 'Pipe ' + port
+        : 'Port ' + port;
+
+    // handle specific listen errors with friendly messages
+    switch (error.code) {
+        case 'EACCES':
+            console.error(bind + ' requires elevated privileges');
+            process.exit(1);
+            break;
+        case 'EADDRINUSE':
+            console.error(bind + ' is already in use');
+            process.exit(1);
+            break;
+        default:
+            throw error;
+    }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+    var addr = server.address();
+    var bind = typeof addr === 'string'
+        ? 'pipe ' + addr
+        : 'port ' + addr.port;
+    debug('Listening on ' + bind);
+}
+
+var b = https.get("https://www.zilver-inkoop.nl/mquotes/mquotes.js.php", function (res) {
+    res.on('data', d => {
+        var a = {};
+        var c = "c" + d;
+        var e = c.split('var JSON_MQUOTES = {"')[1];
+        var f = e.split('window.console')[0];
+        var g = f.substr(0, f.length - 13);
+        var h = g.split(",");
+        for (let i = 0; i < h.length; i++) {
+            h[i] = h[i].replace(/"/g, '');
+
+            var j = h[i].split(":");
+            a[j[0]] = j[1];
+        }
+        var prijsPalladiumBidAsk = a.PALLADIUM_BIDASK_OUNCE_USD * a.EUR_USD / KG_PER_OUNCE;
+        var prijsPlatinaBidAsk = a.PLATINA_BIDASK_OUNCE_USD * a.EUR_USD / KG_PER_OUNCE;
+        var prijsRhodiumBidAsk = a.RHODIUM_BIDASK_OUNCE_USD * a.EUR_USD / KG_PER_OUNCE;
+    });
+}).on('error', function (e) {
+    console.log("Got error: " + e.message);
+});
